@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">AzazelsExplorer</string>
+    <string name="btn_properties">Properties</string>
+    <string name="btn_share">Share</string>
+    <string name="hint_url">Paste a video URL</string>
+    <string name="btn_go">Go</string>
+    <string name="nav_browse">Browse</string>
+    <string name="nav_downloads">Downloads</string>
+    <string name="nav_file_detail">File detail</string>
+    <string name="msg_file_not_found">File doesn\'t exist on this device yet</string>
+    <string name="chooser_share_file">Share file via</string>
+    <string name="label_path">Path: %1$s</string>
+    <string name="status_starting">Starting...</string>
+    <string name="status_error">Error: %1$s</string>
+    <string name="status_label">Status: %1$s</string>
+    <string name="error_unknown">Unknown error</string>
+    <string name="label_unknown">unknown</string>
+</resources>

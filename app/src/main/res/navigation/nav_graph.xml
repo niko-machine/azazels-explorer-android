@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/browserFragment">
+
+    <fragment
+        android:id="@+id/browserFragment"
+        android:name="com.azazel.explorer.ui.browser.BrowserFragment"
+        android:label="@string/nav_browse">
+        <action
+            android:id="@+id/action_browser_to_detail"
+            app:destination="@id/fileDetailFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/downloadsFragment"
+        android:name="com.azazel.explorer.ui.downloads.DownloadsFragment"
+        android:label="@string/nav_downloads">
+        <action
+            android:id="@+id/action_downloads_to_detail"
+            app:destination="@id/fileDetailFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/fileDetailFragment"
+        android:name="com.azazel.explorer.ui.detail.FileDetailFragment"
+        android:label="@string/nav_file_detail">
+        <argument
+            android:name="filePath"
+            app:argType="string" />
+        <argument
+            android:name="fileName"
+            app:argType="string" />
+    </fragment>
+
+</navigation>
