@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="4dp"
+    app:cardBackgroundColor="@color/surface_primary"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="2dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="12dp">
+
+        <ImageView
+            android:id="@+id/iv_category_icon"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            app:tint="@color/accent_primary"
+            tools:src="@drawable/ic_image" />
+
+        <TextView
+            android:id="@+id/tv_category_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textColor="@color/text_on_dark"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            tools:text="Photos" />
+
+        <TextView
+            android:id="@+id/tv_category_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/text_on_dark"
+            android:alpha="0.6"
+            android:textSize="12sp"
+            tools:text="124 items" />
+
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

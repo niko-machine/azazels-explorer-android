@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingVertical="12dp"
+    android:background="?attr/selectableItemBackground">
+
+    <ImageView
+        android:id="@+id/iv_row_icon"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        app:tint="@color/accent_primary"
+        tools:src="@drawable/ic_file" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:paddingStart="16dp">
+
+        <TextView
+            android:id="@+id/tv_row_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/accent_primary"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            tools:text="LABEL" />
+
+        <TextView
+            android:id="@+id/tv_row_value"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/text_on_dark"
+            android:textSize="16sp"
+            tools:text="Value goes here" />
+
+    </LinearLayout>
+</LinearLayout>
