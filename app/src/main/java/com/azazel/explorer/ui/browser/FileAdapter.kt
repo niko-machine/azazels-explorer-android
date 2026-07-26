@@ -14,8 +14,9 @@ import java.util.Date
 import java.util.Locale
 
 class FileAdapter(
-    private val items: List<File>,
-    private val onClick: (File) -> Unit
+    val items: List<File>,
+    private val onClick: (File) -> Unit,
+    private val onLongClick: ((File) -> Unit)? = null
 ) : RecyclerView.Adapter<FileAdapter.ViewHolder>() {
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -60,6 +61,10 @@ class FileAdapter(
         }
 
         holder.itemView.setOnClickListener { onClick(file) }
+        holder.itemView.setOnLongClickListener {
+            onLongClick?.invoke(file)
+            onLongClick != null
+        }
     }
 
     override fun getItemCount() = items.size
@@ -67,9 +72,9 @@ class FileAdapter(
     private fun formatFileSize(bytes: Long): String {
         if (bytes < 1024) return "$bytes B"
         val kb = bytes / 1024.0
-        if (kb < 1024) return String.format("%.1f KB", kb)
+        if (kb < 1024) return String.format(Locale.getDefault(), "%.1f KB", kb)
         val mb = kb / 1024.0
-        if (mb < 1024) return String.format("%.1f MB", mb)
-        return String.format("%.1f GB", mb / 1024.0)
+        if (mb < 1024) return String.format(Locale.getDefault(), "%.1f MB", mb)
+        return String.format(Locale.getDefault(), "%.1f GB", mb / 1024.0)
     }
 }

@@ -21,4 +21,11 @@ interface AuthApiService {
     @Headers("Content-Type: application/json")
     @POST("auth/v1/token?grant_type=password")
     suspend fun signIn(@Body req: AuthRequest): AuthResponse
+
+    @Headers("Content-Type: application/json")
+    @POST("auth/v1/token?grant_type=refresh_token")
+    suspend fun refreshToken(@Body req: Map<String, String>): AuthResponse
+
+    @POST("auth/v1/logout")
+    suspend fun signOut(): retrofit2.Response<Unit>
 }

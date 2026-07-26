@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:id="@+id/dashboardFragment" android:title="Dashboard" android:icon="@android:drawable/ic_menu_today" />
-    <item android:id="@+id/browserFragment" android:title="@string/nav_browse" android:icon="@android:drawable/ic_menu_view" />
-    <item android:id="@+id/downloadsFragment" android:title="@string/nav_downloads" android:icon="@android:drawable/stat_sys_download" />
+    <item android:id="@+id/nav_graph_dashboard" android:title="Dashboard" android:icon="@android:drawable/ic_menu_today" />
+    <item android:id="@+id/nav_graph_browser" android:title="@string/nav_browse" android:icon="@android:drawable/ic_menu_view" />
+    <item android:id="@+id/nav_graph_downloader" android:title="@string/nav_downloads" android:icon="@android:drawable/stat_sys_download" />
 </menu>

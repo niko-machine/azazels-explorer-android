@@ -36,6 +36,19 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toStartOf="@id/btn_retry" />
 
+        <TextView
+            android:id="@+id/tv_job_detail"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textColor="@color/text_on_dark"
+            android:alpha="0.6"
+            android:maxLines="2"
+            android:ellipsize="end"
+            app:layout_constraintTop_toBottomOf="@id/tv_job_status"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btn_retry" />
+
         <Button
             android:id="@+id/btn_retry"
             style="@style/Widget.MaterialComponents.Button.TextButton"

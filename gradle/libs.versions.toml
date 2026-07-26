@@ -16,6 +16,7 @@ lifecycle = "2.7.0"
 cardview = "1.0.0"
 navigationSafeArgs = "2.9.8"
 photoview = "2.3.0"
+uiText = "1.11.4"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -34,6 +35,7 @@ androidx-lifecycle-viewmodel-ktx = { group = "androidx.lifecycle", name = "lifec
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
 androidx-cardview = { group = "androidx.cardview", name = "cardview", version.ref = "cardview" }
 photoview = { group = "com.github.chrisbanes", name = "PhotoView", version.ref = "photoview" }
+androidx-ui-text = { group = "androidx.compose.ui", name = "ui-text", version.ref = "uiText" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

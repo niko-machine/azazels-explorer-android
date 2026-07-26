@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph_browser"
+    app:startDestination="@id/browserFragment">
+
+    <fragment
+        android:id="@+id/browserFragment"
+        android:name="com.azazel.explorer.ui.browser.BrowserFragment"
+        android:label="@string/nav_browse">
+        <argument
+            android:name="initialPath"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="initialFilter"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="isFilteredView"
+            app:argType="boolean"
+            android:defaultValue="false" />
+        <argument
+            android:name="isPickerMode"
+            app:argType="boolean"
+            android:defaultValue="false" />
+        <argument
+            android:name="fileToMovePath"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="highlightFilePath"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <action
+            android:id="@+id/action_browser_to_zip_contents"
+            app:destination="@id/zipContentsFragment" />
+        <action
+            android:id="@+id/action_browser_self"
+            app:destination="@id/browserFragment">
+            <argument
+                android:name="initialPath"
+                app:argType="string"
+                app:nullable="true"
+                android:defaultValue="@null" />
+            <argument
+                android:name="initialFilter"
+                app:argType="string"
+                app:nullable="true"
+                android:defaultValue="@null" />
+            <argument
+                android:name="isFilteredView"
+                app:argType="boolean"
+                android:defaultValue="false" />
+            <argument
+                android:name="isPickerMode"
+                app:argType="boolean"
+                android:defaultValue="false" />
+            <argument
+                android:name="fileToMovePath"
+                app:argType="string"
+                app:nullable="true"
+                android:defaultValue="@null" />
+            <argument
+                android:name="highlightFilePath"
+                app:argType="string"
+                app:nullable="true"
+                android:defaultValue="@null" />
+        </action>
+        <action
+            android:id="@+id/action_browser_to_detail"
+            app:destination="@id/fileDetailFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/fileDetailFragment"
+        android:name="com.azazel.explorer.ui.detail.FileDetailFragment"
+        android:label="@string/nav_file_detail">
+        <argument
+            android:name="filePath"
+            app:argType="string" />
+        <argument
+            android:name="fileName"
+            app:argType="string" />
+        <action
+            android:id="@+id/action_detail_to_preview"
+            app:destination="@id/imageViewerFragment" />
+        <action
+            android:id="@+id/action_detail_to_browser"
+            app:destination="@id/browserFragment">
+            <argument
+                android:name="initialPath"
+                app:argType="string"
+                app:nullable="true"
+                android:defaultValue="@null" />
+            <argument
+                android:name="initialFilter"
+                app:argType="string"
+                app:nullable="true"
+                android:defaultValue="@null" />
+            <argument
+                android:name="isFilteredView"
+                app:argType="boolean"
+                android:defaultValue="false" />
+            <argument
+                android:name="isPickerMode"
+                app:argType="boolean"
+                android:defaultValue="false" />
+            <argument
+                android:name="fileToMovePath"
+                app:argType="string"
+                app:nullable="true"
+                android:defaultValue="@null" />
+            <argument
+                android:name="highlightFilePath"
+                app:argType="string"
+                app:nullable="true"
+                android:defaultValue="@null" />
+        </action>
+        <action
+            android:id="@+id/action_detail_to_properties"
+            app:destination="@id/filePropertiesFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/filePropertiesFragment"
+        android:name="com.azazel.explorer.ui.properties.FilePropertiesFragment"
+        android:label="Properties">
+        <argument
+            android:name="filePath"
+            app:argType="string" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/imageViewerFragment"
+        android:name="com.azazel.explorer.ui.preview.ImageViewerFragment"
+        android:label="Image Viewer">
+        <argument
+            android:name="filePath"
+            app:argType="string" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/zipContentsFragment"
+        android:name="com.azazel.explorer.ui.zip.ZipContentsFragment"
+        android:label="Zip Contents">
+        <argument
+            android:name="filePath"
+            app:argType="string" />
+    </fragment>
+
+</navigation>

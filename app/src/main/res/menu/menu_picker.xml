@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/action_confirm_move"
+        android:title="@string/msg_move_here"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/action_cancel_move"
+        android:title="@android:string/cancel"
+        app:showAsAction="ifRoom" />
+</menu>

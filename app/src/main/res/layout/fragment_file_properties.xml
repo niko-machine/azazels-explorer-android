@@ -46,7 +46,6 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
-                <!-- Properties Rows -->
                 <include
                     android:id="@+id/row_name"
                     layout="@layout/view_property_row" />
@@ -65,6 +64,16 @@
                 <include
                     android:id="@+id/row_writable"
                     layout="@layout/view_property_row" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_copy_path"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/action_copy_path"
+                    android:textColor="@color/accent_primary"
+                    app:strokeColor="@color/accent_primary"
+                    android:layout_marginTop="24dp" />
 
             </LinearLayout>
         </LinearLayout>
