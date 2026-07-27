@@ -1,6 +1,7 @@
 package com.azazel.explorer.ui.browser
 
 import android.Manifest
+import android.content.ClipData
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.MediaScannerConnection
@@ -9,7 +10,10 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.View
+import android.view.animation.AnimationUtils
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -28,6 +32,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.azazel.explorer.R
 import com.azazel.explorer.data.FileRepository
 import com.azazel.explorer.model.FileFilter
@@ -48,10 +53,13 @@ class BrowserFragment : Fragment(R.layout.fragment_browser) {
     private val dirStack = ArrayDeque<File>()
     private var currentSort = SortOrder.NAME
     private var currentFilter = FileFilter.ALL
+    private var currentSearchQuery = ""
+    private var cachedFiles = listOf<File>()
 
     private lateinit var rvFiles: RecyclerView
+    private lateinit var fileAdapter: FileAdapter
     private lateinit var progressBar: ProgressBar
-    private lateinit var tvEmpty: TextView
+    private lateinit var tvEmpty: View
     private lateinit var layoutPermission: LinearLayout
     private lateinit var toolbar: Toolbar
 
@@ -74,7 +82,9 @@ class BrowserFragment : Fragment(R.layout.fragment_browser) {
         args.initialFilter?.let {
             try {
                 currentFilter = FileFilter.valueOf(it)
-            } catch (e: Exception) {}
+            } catch (e: Exception) {
+                currentFilter = FileFilter.ALL
+            }
         }
 
         rvFiles = view.findViewById(R.id.rv_files)
@@ -88,11 +98,40 @@ class BrowserFragment : Fragment(R.layout.fragment_browser) {
         }
 
         rvFiles.layoutManager = LinearLayoutManager(requireContext())
+        val fallAnimation = AnimationUtils.loadLayoutAnimation(requireContext(), R.anim.layout_animation_fade)
+        rvFiles.layoutAnimation = fallAnimation
+
+        fileAdapter = FileAdapter(
+            mutableListOf(),
+            onClick = { file -> onFileClicked(file) },
+            onLongClick = if (!args.isPickerMode) { file -> showActionMenu(file) } else null
+        )
+        rvFiles.adapter = fileAdapter
+
+        val swipeRefresh = view.findViewById<SwipeRefreshLayout>(R.id.swipe_refresh)
+        swipeRefresh.setColorSchemeResources(R.color.accent_primary)
+        swipeRefresh.setOnRefreshListener {
+            loadFiles()
+            swipeRefresh.isRefreshing = false
+        }
 
         setupToolbar()
         setupBackNavigation()
+        setupSearch()
         checkPermissionAndLoad()
         updateMovingBar(view)
+    }
+
+    private fun setupSearch() {
+        val etSearch = view?.findViewById<EditText>(R.id.et_search_files) ?: return
+        etSearch.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                currentSearchQuery = s?.toString() ?: ""
+                filterAndDisplay()
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
     }
 
     private fun updateMovingBar(view: View) {
@@ -109,11 +148,49 @@ class BrowserFragment : Fragment(R.layout.fragment_browser) {
     }
 
     private fun setupToolbar() {
+        val tvFilterSubtitle = view?.findViewById<TextView>(R.id.tv_filter_subtitle)
+
         if (args.isPickerMode) {
             toolbar.title = getString(R.string.msg_move_here)
-            toolbar.menu.clear() 
+            toolbar.menu.clear()
+            tvFilterSubtitle?.visibility = View.GONE
+        } else if (args.isFilteredView || args.fromDashboard) {
+            val label = if (args.isFilteredView) {
+                args.initialFilter?.let { filterName ->
+                    when (filterName) {
+                        "IMAGES" -> getString(R.string.cat_photos)
+                        "VIDEOS" -> getString(R.string.cat_videos)
+                        "AUDIO" -> getString(R.string.cat_audio)
+                        "DOCUMENTS" -> getString(R.string.cat_docs)
+                        "APKS" -> getString(R.string.cat_apks)
+                        "ARCHIVES" -> getString(R.string.cat_archives)
+                        else -> filterName
+                    }
+                } ?: getString(R.string.nav_browse)
+            } else {
+                currentDir.name.ifEmpty { getString(R.string.label_internal_storage) }
+            }
+            toolbar.title = label
+            tvFilterSubtitle?.text = getString(R.string.browser_from_dashboard)
+            tvFilterSubtitle?.visibility = View.VISIBLE
+            toolbar.menu.clear()
+            toolbar.inflateMenu(R.menu.menu_browser)
+            toolbar.setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+                    R.id.action_sort_name -> { currentSort = SortOrder.NAME; loadFiles() }
+                    R.id.action_sort_date -> { currentSort = SortOrder.DATE; loadFiles() }
+                    R.id.action_sort_size -> { currentSort = SortOrder.SIZE; loadFiles() }
+                    R.id.action_sort_type -> { currentSort = SortOrder.TYPE; loadFiles() }
+                    R.id.action_filter_all -> { currentFilter = FileFilter.ALL; loadFiles() }
+                    R.id.action_filter_images -> { currentFilter = FileFilter.IMAGES; loadFiles() }
+                    R.id.action_filter_videos -> { currentFilter = FileFilter.VIDEOS; loadFiles() }
+                    R.id.action_filter_documents -> { currentFilter = FileFilter.DOCUMENTS; loadFiles() }
+                }
+                true
+            }
         } else {
-            toolbar.title = currentDir.name.ifEmpty { "Internal Storage" }
+            toolbar.title = currentDir.name.ifEmpty { getString(R.string.label_internal_storage) }
+            tvFilterSubtitle?.visibility = View.GONE
             toolbar.inflateMenu(R.menu.menu_browser)
             toolbar.setOnMenuItemClickListener { item ->
                 when (item.itemId) {
@@ -134,7 +211,10 @@ class BrowserFragment : Fragment(R.layout.fragment_browser) {
 
     private fun updateToolbarNavigation() {
         val hasBackStack = dirStack.isNotEmpty() || (args.isPickerMode && currentDir != Environment.getExternalStorageDirectory())
-        if (!args.isFilteredView && hasBackStack) {
+        if (args.isFilteredView || args.fromDashboard) {
+            toolbar.setNavigationIcon(R.drawable.ic_arrow_back)
+            toolbar.setNavigationOnClickListener { findNavController().navigateUp() }
+        } else if (hasBackStack) {
             toolbar.setNavigationIcon(R.drawable.ic_arrow_back)
             toolbar.setNavigationOnClickListener { navigateUp() }
         } else {
@@ -146,7 +226,7 @@ class BrowserFragment : Fragment(R.layout.fragment_browser) {
         if (dirStack.isNotEmpty()) {
             currentDir = dirStack.removeLast()
             if (!args.isPickerMode) {
-                toolbar.title = currentDir.name.ifEmpty { "Internal Storage" }
+                toolbar.title = currentDir.name.ifEmpty { getString(R.string.label_internal_storage) }
             }
             loadFiles()
             updateToolbarNavigation()
@@ -161,7 +241,10 @@ class BrowserFragment : Fragment(R.layout.fragment_browser) {
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 val canNavigateUpInternal = dirStack.isNotEmpty() || (args.isPickerMode && currentDir != Environment.getExternalStorageDirectory())
-                if (canNavigateUpInternal) {
+                if (args.isFilteredView || args.fromDashboard) {
+                    isEnabled = false
+                    requireActivity().onBackPressedDispatcher.onBackPressed()
+                } else if (canNavigateUpInternal) {
                     navigateUp()
                 } else {
                     isEnabled = false
@@ -171,9 +254,11 @@ class BrowserFragment : Fragment(R.layout.fragment_browser) {
         })
     }
 
+    private var hasLoadedOnce = false
+
     override fun onResume() {
         super.onResume()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()) {
+        if (hasLoadedOnce && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()) {
             loadFiles()
         }
     }
@@ -223,26 +308,36 @@ class BrowserFragment : Fragment(R.layout.fragment_browser) {
                 withContext(Dispatchers.IO) { repository.listFiles(currentDir) }
             }
             
+            cachedFiles = files
+            filterAndDisplay()
+        }
+    }
+
+    private fun filterAndDisplay() {
+        viewLifecycleOwner.lifecycleScope.launch {
             val sortedAndFiltered = withContext(Dispatchers.Default) {
-                if (args.isFilteredView) {
-                    applySort(files)
+                val baseList = if (args.isFilteredView) {
+                    applySort(cachedFiles)
                 } else {
-                    applySort(applyFilter(files))
+                    applySort(applyFilter(cachedFiles))
+                }
+                
+                if (currentSearchQuery.isBlank()) {
+                    baseList
+                } else {
+                    baseList.filter { it.name.contains(currentSearchQuery, ignoreCase = true) }
                 }
             }
 
             progressBar.visibility = View.GONE
+            hasLoadedOnce = true
             if (sortedAndFiltered.isEmpty()) {
                 tvEmpty.visibility = View.VISIBLE
                 rvFiles.visibility = View.GONE
             } else {
                 tvEmpty.visibility = View.GONE
                 rvFiles.visibility = View.VISIBLE
-                rvFiles.adapter = FileAdapter(
-                    sortedAndFiltered,
-                    onClick = { file -> onFileClicked(file) },
-                    onLongClick = if (!args.isPickerMode) { file -> showActionMenu(file) } else null
-                )
+                fileAdapter.submitList(sortedAndFiltered)
 
                 args.highlightFilePath?.let { path ->
                     val index = sortedAndFiltered.indexOfFirst { it.absolutePath == path }
@@ -287,23 +382,29 @@ class BrowserFragment : Fragment(R.layout.fragment_browser) {
             findNavController().navigate(action)
         } else if (!args.isPickerMode) {
             val action = BrowserFragmentDirections
-                .actionBrowserToDetail(filePath = file.absolutePath, fileName = file.name)
+                .actionBrowserToDetail(
+                    filePath = file.absolutePath, 
+                    fileName = file.name,
+                    showLocationAction = args.isFilteredView || args.fromDashboard
+                )
             findNavController().navigate(action)
         }
     }
 
     private fun showActionMenu(file: File) {
-        val adapter = rvFiles.adapter as? FileAdapter ?: return
-        val index = adapter.items.indexOf(file)
+        val index = fileAdapter.currentItems.indexOf(file)
         val view = rvFiles.findViewHolderForAdapterPosition(index)?.itemView ?: return
         
         val popup = PopupMenu(requireContext(), view)
         popup.menu.add(0, 1, 0, R.string.action_rename).isEnabled = file.canWrite()
         popup.menu.add(0, 2, 1, R.string.action_duplicate).isEnabled = file.canWrite()
-        popup.menu.add(0, 3, 2, R.string.action_move).isEnabled = file.canWrite()
-        popup.menu.add(0, 4, 3, R.string.action_zip).isEnabled = file.canWrite()
-        popup.menu.add(0, 5, 4, R.string.action_delete).isEnabled = file.canWrite()
-        popup.menu.add(0, 6, 5, R.string.action_show_in_folder)
+        popup.menu.add(0, 7, 2, R.string.action_share)
+        popup.menu.add(0, 3, 3, R.string.action_move).isEnabled = file.canWrite()
+        popup.menu.add(0, 4, 4, R.string.action_zip).isEnabled = file.canWrite()
+        popup.menu.add(0, 5, 5, R.string.action_delete).isEnabled = file.canWrite()
+        if (args.isFilteredView || args.fromDashboard) {
+            popup.menu.add(0, 6, 6, R.string.action_show_in_folder)
+        }
         
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
@@ -319,6 +420,7 @@ class BrowserFragment : Fragment(R.layout.fragment_browser) {
                     )
                     findNavController().navigate(action)
                 }
+                7 -> shareFile(file)
             }
             true
         }
@@ -347,6 +449,12 @@ class BrowserFragment : Fragment(R.layout.fragment_browser) {
     }
 
     private fun duplicateFile(file: File) {
+        val progressDialog = AlertDialog.Builder(requireContext())
+            .setTitle(R.string.action_duplicate)
+            .setMessage(getString(R.string.msg_copying, file.name))
+            .setCancelable(false)
+            .create()
+        progressDialog.show()
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             val target = File(file.parentFile, "${file.nameWithoutExtension}_copy.${file.extension}")
             val success = try {
@@ -359,6 +467,7 @@ class BrowserFragment : Fragment(R.layout.fragment_browser) {
             }
 
             withContext(Dispatchers.Main) {
+                progressDialog.dismiss()
                 if (success) {
                     Toast.makeText(requireContext(), getString(R.string.msg_copy_success, target.name), Toast.LENGTH_SHORT).show()
                     loadFiles()
@@ -406,7 +515,30 @@ class BrowserFragment : Fragment(R.layout.fragment_browser) {
             .show()
     }
 
+    private fun shareFile(file: File) {
+        try {
+            val uri = androidx.core.content.FileProvider.getUriForFile(
+                requireContext(), "${requireContext().packageName}.fileprovider", file
+            )
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = requireContext().contentResolver.getType(uri) ?: "*/*"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                clipData = ClipData.newRawUri("", uri)
+            }
+            startActivity(Intent.createChooser(intent, getString(R.string.chooser_share_file)))
+        } catch (e: Exception) {
+            Toast.makeText(requireContext(), R.string.msg_error_operation, Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun zipFile(file: File) {
+        val progressDialog = AlertDialog.Builder(requireContext())
+            .setTitle(R.string.action_zip)
+            .setMessage(getString(R.string.msg_compressing, file.name))
+            .setCancelable(false)
+            .create()
+        progressDialog.show()
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             val zipTarget = File(file.parentFile, "${file.nameWithoutExtension}.zip")
             val success = try {
@@ -432,6 +564,7 @@ class BrowserFragment : Fragment(R.layout.fragment_browser) {
             }
 
             withContext(Dispatchers.Main) {
+                progressDialog.dismiss()
                 if (success) {
                     Toast.makeText(requireContext(), getString(R.string.msg_zip_success, zipTarget.name), Toast.LENGTH_SHORT).show()
                     loadFiles()

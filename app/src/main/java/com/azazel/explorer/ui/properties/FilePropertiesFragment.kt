@@ -14,6 +14,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.bumptech.glide.Glide
 import com.azazel.explorer.R
+import com.azazel.explorer.util.formatFileSize
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -53,28 +54,27 @@ class FilePropertiesFragment : Fragment(R.layout.fragment_file_properties) {
     }
 
     private fun setupProperties(view: View, file: File) {
-        setPropertyRow(view.findViewById(R.id.row_name), "Name", file.name)
-        setPropertyRow(view.findViewById(R.id.row_path), "Location", file.absolutePath)
-        setPropertyRow(view.findViewById(R.id.row_size), "Size", if (file.isDirectory) "--" else formatFileSize(file.length()))
+        val nameIcon = when {
+            file.isDirectory -> R.drawable.ic_folder
+            file.extension.lowercase() in listOf("jpg", "jpeg", "png", "gif", "webp") -> R.drawable.ic_image
+            file.extension.lowercase() in listOf("mp4", "mkv", "avi", "mov") -> R.drawable.ic_video
+            else -> R.drawable.ic_file
+        }
+
+        setPropertyRow(view.findViewById(R.id.row_name), "Name", file.name, nameIcon)
+        setPropertyRow(view.findViewById(R.id.row_path), "Location", file.absolutePath, R.drawable.ic_folder)
+        setPropertyRow(view.findViewById(R.id.row_size), "Size", if (file.isDirectory) "--" else formatFileSize(file.length()), R.drawable.ic_file)
         
         val dateText = SimpleDateFormat("MMM d, yyyy HH:mm", Locale.getDefault()).format(Date(file.lastModified()))
-        setPropertyRow(view.findViewById(R.id.row_modified), "Last Modified", dateText)
+        setPropertyRow(view.findViewById(R.id.row_modified), "Last Modified", dateText, R.drawable.ic_file)
         
-        setPropertyRow(view.findViewById(R.id.row_readable), "Readable", if (file.canRead()) "Yes" else "No")
-        setPropertyRow(view.findViewById(R.id.row_writable), "Writable", if (file.canWrite()) "Yes" else "No")
+        setPropertyRow(view.findViewById(R.id.row_readable), "Readable", if (file.canRead()) "Yes" else "No", R.drawable.ic_file)
+        setPropertyRow(view.findViewById(R.id.row_writable), "Writable", if (file.canWrite()) "Yes" else "No", R.drawable.ic_file)
     }
 
-    private fun setPropertyRow(rowView: View, label: String, value: String) {
+    private fun setPropertyRow(rowView: View, label: String, value: String, iconRes: Int) {
         rowView.findViewById<TextView>(R.id.tv_row_label).text = label
         rowView.findViewById<TextView>(R.id.tv_row_value).text = value
-    }
-
-    private fun formatFileSize(bytes: Long): String {
-        if (bytes < 1024) return "$bytes B"
-        val kb = bytes / 1024.0
-        if (kb < 1024) return String.format(Locale.getDefault(), "%.1f KB", kb)
-        val mb = kb / 1024.0
-        if (mb < 1024) return String.format(Locale.getDefault(), "%.1f MB", mb)
-        return String.format(Locale.getDefault(), "%.1f GB", mb / 1024.0)
+        rowView.findViewById<ImageView>(R.id.iv_row_icon).setImageResource(iconRes)
     }
 }

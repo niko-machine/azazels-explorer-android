@@ -8,16 +8,19 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.azazel.explorer.R
+import com.azazel.explorer.util.formatFileSize
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 class FileAdapter(
-    val items: List<File>,
+    private val items: MutableList<File>,
     private val onClick: (File) -> Unit,
     private val onLongClick: ((File) -> Unit)? = null
 ) : RecyclerView.Adapter<FileAdapter.ViewHolder>() {
+
+    val currentItems: List<File> get() = items
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val name: TextView = view.findViewById(R.id.tv_file_name)
@@ -69,12 +72,22 @@ class FileAdapter(
 
     override fun getItemCount() = items.size
 
-    private fun formatFileSize(bytes: Long): String {
-        if (bytes < 1024) return "$bytes B"
-        val kb = bytes / 1024.0
-        if (kb < 1024) return String.format(Locale.getDefault(), "%.1f KB", kb)
-        val mb = kb / 1024.0
-        if (mb < 1024) return String.format(Locale.getDefault(), "%.1f MB", mb)
-        return String.format(Locale.getDefault(), "%.1f GB", mb / 1024.0)
+    fun submitList(newItems: List<File>) {
+        items.clear()
+        items.addAll(newItems)
+        notifyDataSetChanged()
+        recyclerView?.scheduleLayoutAnimation()
+    }
+
+    private var recyclerView: RecyclerView? = null
+
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
+        super.onAttachedToRecyclerView(recyclerView)
+        this.recyclerView = recyclerView
+    }
+
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        super.onDetachedFromRecyclerView(recyclerView)
+        this.recyclerView = null
     }
 }

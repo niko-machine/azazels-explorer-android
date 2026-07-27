@@ -4,22 +4,27 @@ import android.os.Bundle
 import android.os.Environment
 import android.os.StatFs
 import android.provider.MediaStore
+import android.view.LayoutInflater
 import android.view.View
+import android.view.animation.AnimationUtils
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.PopupMenu
-import android.widget.ProgressBar
 import android.widget.TextView
-import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
+
+import androidx.appcompat.widget.Toolbar
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.azazel.explorer.R
+import com.azazel.explorer.util.formatFileSize
 import com.azazel.explorer.model.FileFilter
 import com.azazel.explorer.ui.browser.FileAdapter
+import com.azazel.explorer.ui.views.StorageDonutView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -35,150 +40,38 @@ class DashboardFragment : Fragment(R.layout.fragment_dashboard) {
         setupQuickAccessGrid(view)
         setupRecentFiles(view)
         setupOrganizeButton(view)
+        setupToolbar(view)
+
+        val swipeRefresh = view.findViewById<SwipeRefreshLayout>(R.id.swipe_refresh)
+        swipeRefresh.setColorSchemeResources(R.color.accent_primary)
+        swipeRefresh.setOnRefreshListener {
+            setupStorageStats(view)
+            setupQuickAccessGrid(view)
+            setupRecentFiles(view)
+            swipeRefresh.isRefreshing = false
+        }
+    }
+
+    private fun setupToolbar(view: View) {
+        val toolbar = view.findViewById<Toolbar>(R.id.toolbar)
+        toolbar.inflateMenu(R.menu.menu_dashboard)
+        toolbar.setOnMenuItemClickListener { item ->
+            if (item.itemId == R.id.action_settings) {
+                val action = DashboardFragmentDirections.actionDashboardToSettings()
+                findNavController().navigate(action)
+                true
+            } else false
+        }
     }
 
     private fun setupOrganizeButton(view: View) {
-        view.findViewById<Button>(R.id.btn_organize).setOnClickListener {
-            AlertDialog.Builder(requireContext())
-                .setTitle(R.string.dialog_organize_title)
-                .setMessage(R.string.dialog_organize_msg)
-                .setPositiveButton("Organize") { _, _ -> runFileOrganizer() }
-                .setNegativeButton("Cancel", null)
-                .show()
+        val btnOrganize = view.findViewById<Button>(R.id.btn_organize)
+        btnOrganize.setOnClickListener {
+            val action = DashboardFragmentDirections.actionDashboardToOrganize()
+            findNavController().navigate(action)
         }
     }
 
-    private fun runFileOrganizer() {
-        viewLifecycleOwner.lifecycleScope.launch {
-            val movedByDestination = withContext(Dispatchers.IO) {
-                val results = mutableMapOf<String, Int>()
-                val sources = listOf(
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
-                )
-
-                sources.forEach { sourceDir ->
-                    sourceDir.listFiles()?.forEach { file ->
-                        if (file.isFile && !isAlreadyOrganized(file)) {
-                            val destinationLabel = getDestinationLabel(file)
-                            if (destinationLabel != null && organizeFile(file)) {
-                                results[destinationLabel] = (results[destinationLabel] ?: 0) + 1
-                            }
-                        }
-                    }
-                }
-                results
-            }
-            showOrganizeSummary(movedByDestination)
-            setupQuickAccessGrid(requireView()) // Refresh counts
-        }
-    }
-
-    private fun getDestinationLabel(file: File): String? {
-        val ext = file.extension.lowercase()
-        val docExtensions = listOf("pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "txt")
-        val imgExtensions = listOf("jpg", "jpeg", "png", "gif", "webp")
-
-        return when {
-            ext in docExtensions -> "Documents/${ext.uppercase()}"
-            ext in imgExtensions -> {
-                val sourceName = getSourceAppName(file)
-                "Photos/$sourceName/${ext.uppercase()}"
-            }
-            else -> null
-        }
-    }
-
-    private fun showOrganizeSummary(results: Map<String, Int>) {
-        if (results.isEmpty()) {
-            Toast.makeText(requireContext(), R.string.msg_organize_nothing, Toast.LENGTH_SHORT).show()
-            return
-        }
-        val message = results.entries.joinToString("\n") { (dest, count) -> "$count → $dest" }
-        AlertDialog.Builder(requireContext())
-            .setTitle(R.string.label_organize_complete)
-            .setMessage(message)
-            .setPositiveButton(android.R.string.ok, null)
-            .show()
-    }
-
-    private fun isAlreadyOrganized(file: File): Boolean {
-        val path = file.absolutePath
-        return path.contains("/Documents/") || path.contains("/Photos/")
-    }
-
-    private fun organizeFile(file: File): Boolean {
-        val ext = file.extension.lowercase()
-        val docExtensions = listOf("pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "txt")
-        val imgExtensions = listOf("jpg", "jpeg", "png", "gif", "webp")
-
-        return when {
-            ext in docExtensions -> {
-                val targetDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), ext.uppercase())
-                moveFile(file, targetDir)
-            }
-            ext in imgExtensions -> {
-                val sourceName = getSourceAppName(file)
-                val targetDir = File(File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "Photos"), "$sourceName/${ext.uppercase()}")
-                moveFile(file, targetDir)
-            }
-            else -> false
-        }
-    }
-
-    private fun getSourceAppName(file: File): String {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            val projection = arrayOf(MediaStore.MediaColumns.OWNER_PACKAGE_NAME)
-            val selection = "${MediaStore.MediaColumns.DATA} = ?"
-            val selectionArgs = arrayOf(file.absolutePath)
-            
-            val cursor = requireContext().contentResolver.query(
-                MediaStore.Files.getContentUri("external"),
-                projection, selection, selectionArgs, null
-            )
-            cursor?.use {
-                if (it.moveToFirst()) {
-                    val pkg = it.getString(it.getColumnIndexOrThrow(MediaStore.MediaColumns.OWNER_PACKAGE_NAME))
-                    if (pkg != null) return mapPackageToName(pkg)
-                }
-            }
-        }
-
-        val parent = file.parentFile?.name ?: ""
-        val knownApps = listOf("WhatsApp", "Instagram", "Facebook", "Messenger", "Telegram", "Twitter", "Snapchat")
-        knownApps.forEach { if (parent.contains(it, ignoreCase = true)) return it }
-
-        return getString(R.string.source_other)
-    }
-
-    private fun mapPackageToName(pkg: String): String = when {
-        pkg.contains("whatsapp") -> "WhatsApp"
-        pkg.contains("facebook.orca") -> "Messenger"
-        pkg.contains("facebook.katana") -> "Facebook"
-        pkg.contains("instagram") -> "Instagram"
-        pkg.contains("google.android.apps.photos") -> "Google Photos"
-        pkg.contains("chrome") -> "Chrome"
-        pkg.contains("telegram") -> "Telegram"
-        else -> pkg.substringAfterLast('.').replaceFirstChar { it.uppercase() }
-    }
-
-    private fun moveFile(file: File, targetDir: File): Boolean {
-        if (!targetDir.exists()) targetDir.mkdirs()
-        val targetFile = File(targetDir, file.name)
-        
-        return if (file.renameTo(targetFile)) {
-            true
-        } else {
-            try {
-                file.copyTo(targetFile, overwrite = true)
-                file.delete()
-                true
-            } catch (e: Exception) {
-                false
-            }
-        }
-    }
 
     private fun setupStorageStats(view: View) {
         val stat = StatFs(Environment.getExternalStorageDirectory().path)
@@ -186,13 +79,76 @@ class DashboardFragment : Fragment(R.layout.fragment_dashboard) {
         val availableBytes = stat.availableBytes
         val usedBytes = totalBytes - availableBytes
 
-        val pbStorage = view.findViewById<ProgressBar>(R.id.pb_storage)
+        val donutView = view.findViewById<StorageDonutView>(R.id.donut_storage)
         val tvStats = view.findViewById<TextView>(R.id.tv_storage_stats)
 
-        pbStorage.max = 100
-        pbStorage.progress = ((usedBytes.toDouble() / totalBytes.toDouble()) * 100).toInt()
+        viewLifecycleOwner.lifecycleScope.launch {
+            val breakdown = withContext(Dispatchers.IO) { getStorageBreakdown() }
+            
+            val images = breakdown[FileFilter.IMAGES] ?: 0
+            val videos = breakdown[FileFilter.VIDEOS] ?: 0
+            val audio = breakdown[FileFilter.AUDIO] ?: 0
+            val docs = breakdown[FileFilter.DOCUMENTS] ?: 0
+            val other = maxOf(0L, usedBytes - (images + videos + audio + docs))
+            val available = availableBytes
+
+            val categories = listOf(
+                StorageDonutView.CategoryData(images, R.color.accent_primary, getString(R.string.cat_photos)),
+                StorageDonutView.CategoryData(videos, R.color.status_processing, getString(R.string.cat_videos)),
+                StorageDonutView.CategoryData(audio, R.color.status_done, getString(R.string.cat_audio)),
+                StorageDonutView.CategoryData(docs, R.color.accent_secondary, getString(R.string.cat_docs)),
+                StorageDonutView.CategoryData(other, R.color.surface_secondary, getString(R.string.source_other)),
+                StorageDonutView.CategoryData(available, R.color.background_primary, getString(R.string.label_available))
+            )
+            donutView.setData(totalBytes, usedBytes, categories)
+            setupStorageLegend(view.findViewById(R.id.layout_storage_legend), categories)
+        }
 
         tvStats.text = getString(R.string.label_storage_used, formatFileSize(usedBytes), formatFileSize(totalBytes))
+    }
+
+    private fun setupStorageLegend(container: LinearLayout, categories: List<StorageDonutView.CategoryData>) {
+        container.removeAllViews()
+        val inflater = LayoutInflater.from(requireContext())
+        
+        categories.forEach { category ->
+            val row = inflater.inflate(R.layout.item_storage_legend, container, false)
+            row.findViewById<View>(R.id.view_color_swatch).setBackgroundColor(
+                androidx.core.content.ContextCompat.getColor(requireContext(), category.colorRes)
+            )
+            row.findViewById<TextView>(R.id.tv_legend_label).text = category.label
+            row.findViewById<TextView>(R.id.tv_legend_size).text = formatFileSize(category.bytes)
+            container.addView(row)
+        }
+    }
+
+    private fun getStorageBreakdown(): Map<FileFilter, Long> {
+        val results = mutableMapOf<FileFilter, Long>()
+        val projection = arrayOf(MediaStore.Files.FileColumns.SIZE, MediaStore.Files.FileColumns.MEDIA_TYPE)
+        
+        val cursor = requireContext().contentResolver.query(
+            MediaStore.Files.getContentUri("external"),
+            projection, null, null, null
+        )
+
+        cursor?.use {
+            val sizeIndex = it.getColumnIndexOrThrow(MediaStore.Files.FileColumns.SIZE)
+            val typeIndex = it.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MEDIA_TYPE)
+            
+            while (it.moveToNext()) {
+                val size = it.getLong(sizeIndex)
+                val type = it.getInt(typeIndex)
+                
+                val filter = when (type) {
+                    MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE -> FileFilter.IMAGES
+                    MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO -> FileFilter.VIDEOS
+                    MediaStore.Files.FileColumns.MEDIA_TYPE_AUDIO -> FileFilter.AUDIO
+                    else -> FileFilter.DOCUMENTS // Approximation for breakdown
+                }
+                results[filter] = (results[filter] ?: 0) + size
+            }
+        }
+        return results
     }
 
     private fun setupQuickAccessGrid(view: View) {
@@ -228,7 +184,8 @@ class DashboardFragment : Fragment(R.layout.fragment_dashboard) {
                     val action = DashboardFragmentDirections.actionDashboardToBrowser(
                         initialPath = null,
                         initialFilter = category.filterType,
-                        isFilteredView = true
+                        isFilteredView = true,
+                        fromDashboard = true
                     )
                     findNavController().navigate(action)
                 } else {
@@ -236,7 +193,8 @@ class DashboardFragment : Fragment(R.layout.fragment_dashboard) {
                         initialPath = if (category.directory?.startsWith('/') == true) category.directory else 
                             File(Environment.getExternalStorageDirectory(), category.directory!!).absolutePath,
                         initialFilter = null,
-                        isFilteredView = false
+                        isFilteredView = false,
+                        fromDashboard = true
                     )
                     findNavController().navigate(action)
                 }
@@ -272,14 +230,17 @@ class DashboardFragment : Fragment(R.layout.fragment_dashboard) {
     private fun setupRecentFiles(view: View) {
         val rv = view.findViewById<RecyclerView>(R.id.rv_recent_files)
         rv.layoutManager = LinearLayoutManager(requireContext())
+        val fallAnimation = AnimationUtils.loadLayoutAnimation(requireContext(), R.anim.layout_animation_fade)
+        rv.layoutAnimation = fallAnimation
 
         viewLifecycleOwner.lifecycleScope.launch {
             val recentFiles = withContext(Dispatchers.IO) { getRecentFiles() }
-            rv.adapter = FileAdapter(recentFiles, 
+            rv.adapter = FileAdapter(recentFiles.toMutableList(), 
                 onClick = { file ->
                     val action = DashboardFragmentDirections.actionDashboardToDetail(
                         filePath = file.absolutePath,
-                        fileName = file.name
+                        fileName = file.name,
+                        showLocationAction = true
                     )
                     findNavController().navigate(action)
                 },
@@ -291,7 +252,7 @@ class DashboardFragment : Fragment(R.layout.fragment_dashboard) {
     private fun showRecentFileMenu(file: File) {
         val rv = view?.findViewById<RecyclerView>(R.id.rv_recent_files) ?: return
         val adapter = rv.adapter as? FileAdapter ?: return
-        val index = adapter.items.indexOf(file)
+        val index = adapter.currentItems.indexOf(file)
         val view = rv.findViewHolderForAdapterPosition(index)?.itemView ?: return
 
         val popup = PopupMenu(requireContext(), view)
@@ -335,14 +296,5 @@ class DashboardFragment : Fragment(R.layout.fragment_dashboard) {
             }
         }
         return files
-    }
-
-    private fun formatFileSize(bytes: Long): String {
-        if (bytes < 1024) return "$bytes B"
-        val kb = bytes / 1024.0
-        if (kb < 1024) return String.format(Locale.getDefault(), "%.1f KB", kb)
-        val mb = kb / 1024.0
-        if (mb < 1024) return String.format(Locale.getDefault(), "%.1f MB", mb)
-        return String.format(Locale.getDefault(), "%.1f GB", mb / 1024.0)
     }
 }

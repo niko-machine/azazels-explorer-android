@@ -5,6 +5,7 @@ import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
+import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
@@ -13,13 +14,18 @@ import android.text.TextWatcher
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.widget.Toolbar
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.azazel.explorer.R
 import com.azazel.explorer.data.SessionManager
 import com.azazel.explorer.network.AuthRequest
@@ -37,15 +43,16 @@ import java.io.File
 
 class DownloadsFragment : Fragment(R.layout.fragment_downloads) {
 
-    private lateinit var adapter: JobAdapter
+    private var adapter: JobAdapter? = null
     private lateinit var sessionManager: SessionManager
     private val jobList = mutableListOf<DownloadJob>()
     private val displayedJobs = mutableListOf<DownloadJob>()
-    private val jobToLocalFile = mutableMapOf<String, File>()
     private val downloadedJobs = mutableSetOf<String>()
+    private val downloadingToDevice = mutableSetOf<String>()
     private var isLoginMode = true
     private var currentFilterId = R.id.chip_filter_all
     private var currentSearchQuery = ""
+    private var isDownloadUiInitialized = false
 
     data class CooldownError(val error: String?, val retryAfterMs: Long?)
 
@@ -60,19 +67,50 @@ class DownloadsFragment : Fragment(R.layout.fragment_downloads) {
         } else {
             showAuthUi(view)
         }
+
+        setupToolbar(view)
+    }
+
+    private fun setupToolbar(view: View) {
+        val toolbar = view.findViewById<Toolbar>(R.id.toolbar)
+        toolbar.inflateMenu(R.menu.menu_downloader)
+        toolbar.setOnMenuItemClickListener { item ->
+            if (item.itemId == R.id.action_info) {
+                showIntroDialog()
+                true
+            } else false
+        }
+    }
+
+    private fun showIntroDialog() {
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.downloader_intro_title)
+            .setMessage(R.string.downloader_intro_desc)
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
     }
 
     private fun showAuthUi(view: View) {
+        isDownloadUiInitialized = false
+        adapter = null
+
         val layoutAuth = view.findViewById<View>(R.id.layout_auth)
-        val layoutDownloads = view.findViewById<View>(R.id.layout_downloads)
+        val swipeRefresh = view.findViewById<View>(R.id.swipe_refresh)
+        val btnLogout = view.findViewById<View>(R.id.btn_logout)
         layoutAuth.visibility = View.VISIBLE
-        layoutDownloads.visibility = View.GONE
+        swipeRefresh.visibility = View.GONE
+        btnLogout.visibility = View.GONE
 
         val etEmail = view.findViewById<EditText>(R.id.et_email)
         val etPassword = view.findViewById<EditText>(R.id.et_password)
         val btnPrimary = view.findViewById<Button>(R.id.btn_auth_primary)
         val btnSecondary = view.findViewById<Button>(R.id.btn_auth_secondary)
         val tvTitle = view.findViewById<TextView>(R.id.tv_auth_title)
+
+        etEmail.text.clear()
+        etPassword.text.clear()
+        etEmail.isEnabled = true
+        etPassword.isEnabled = true
 
         updateAuthMode(tvTitle, btnPrimary, btnSecondary)
 
@@ -90,6 +128,12 @@ class DownloadsFragment : Fragment(R.layout.fragment_downloads) {
                 return@setOnClickListener
             }
 
+            btnPrimary.isEnabled = false
+            btnSecondary.isEnabled = false
+            etEmail.isEnabled = false
+            etPassword.isEnabled = false
+            btnPrimary.setText(R.string.status_starting)
+
             viewLifecycleOwner.lifecycleScope.launch {
                 try {
                     val request = AuthRequest(email, password)
@@ -101,7 +145,7 @@ class DownloadsFragment : Fragment(R.layout.fragment_downloads) {
 
                     if (response.access_token != null && response.refresh_token != null) {
                         sessionManager.saveToken(response.access_token, response.refresh_token)
-                        showDownloadUi(view)
+                        if (isAdded) showDownloadUi(view)
                     } else {
                         Toast.makeText(requireContext(), getString(R.string.msg_auth_error, response.error ?: getString(R.string.error_unknown)), Toast.LENGTH_SHORT).show()
                     }
@@ -109,6 +153,14 @@ class DownloadsFragment : Fragment(R.layout.fragment_downloads) {
                     Toast.makeText(requireContext(), getString(R.string.msg_auth_error, parseAuthError(e)), Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
                     Toast.makeText(requireContext(), getString(R.string.msg_auth_error, e.message ?: getString(R.string.error_unknown)), Toast.LENGTH_SHORT).show()
+                } finally {
+                    if (isAdded) {
+                        btnPrimary.isEnabled = true
+                        btnSecondary.isEnabled = true
+                        etEmail.isEnabled = true
+                        etPassword.isEnabled = true
+                        updateAuthMode(tvTitle, btnPrimary, btnSecondary)
+                    }
                 }
             }
         }
@@ -138,14 +190,18 @@ class DownloadsFragment : Fragment(R.layout.fragment_downloads) {
 
     private fun showDownloadUi(view: View) {
         view.findViewById<View>(R.id.layout_auth).visibility = View.GONE
-        view.findViewById<View>(R.id.layout_downloads).visibility = View.VISIBLE
+        view.findViewById<View>(R.id.swipe_refresh).visibility = View.VISIBLE
+        view.findViewById<View>(R.id.btn_logout).visibility = View.VISIBLE
 
         val etUrl = view.findViewById<EditText>(R.id.et_url)
         val etOutputName = view.findViewById<EditText>(R.id.et_output_name)
         val rvJobs = view.findViewById<RecyclerView>(R.id.rv_jobs)
         val layoutEmpty = view.findViewById<View>(R.id.layout_empty_downloader)
+        val layoutListHeader = view.findViewById<View>(R.id.layout_list_header)
+        val btnDownload = view.findViewById<Button>(R.id.btn_download)
 
         view.findViewById<Button>(R.id.btn_logout).setOnClickListener {
+            btnDownload.isEnabled = false
             viewLifecycleOwner.lifecycleScope.launch {
                 try {
                     AuthRetrofitClient.api.signOut()
@@ -154,22 +210,41 @@ class DownloadsFragment : Fragment(R.layout.fragment_downloads) {
                 }
                 sessionManager.clear()
                 jobList.clear()
-                showAuthUi(view)
+                displayedJobs.clear()
+                downloadedJobs.clear()
+                downloadingToDevice.clear()
+                if (isAdded) showAuthUi(view)
             }
         }
 
-        adapter = JobAdapter(displayedJobs,
-            onRetry = { job -> retryJob(job) },
-            onOpen = { job -> openDownloadedFile(job) },
-        )
-        rvJobs.layoutManager = LinearLayoutManager(requireContext())
-        rvJobs.adapter = adapter
+        if (!isDownloadUiInitialized || adapter == null) {
+            adapter = JobAdapter(displayedJobs, downloadingToDevice,
+                onRetry = { job -> retryJob(job) },
+                onOpen = { job -> openDownloadedFile(job) },
+                onShowInFolder = { job -> showInFolder(job) },
+            )
+            rvJobs.layoutManager = LinearLayoutManager(requireContext())
+            rvJobs.adapter = adapter
+            isDownloadUiInitialized = true
+        } else {
+            rvJobs.adapter = adapter
+        }
 
         setupFilters(view)
-        updateEmptyState(layoutEmpty, rvJobs, view.findViewById(R.id.layout_list_header))
-        loadHistory(layoutEmpty, rvJobs, view.findViewById(R.id.layout_list_header))
+        updateEmptyState(layoutEmpty, rvJobs, layoutListHeader)
+        loadHistory(layoutEmpty, rvJobs, layoutListHeader)
 
-        view.findViewById<Button>(R.id.btn_download).setOnClickListener {
+        val swipeRefresh = view.findViewById<SwipeRefreshLayout>(R.id.swipe_refresh)
+        swipeRefresh.setColorSchemeResources(R.color.accent_primary)
+        swipeRefresh.setOnRefreshListener {
+            loadHistory(layoutEmpty, rvJobs, layoutListHeader)
+            swipeRefresh.isRefreshing = false
+        }
+
+        btnDownload.isEnabled = true
+        btnDownload.setText(R.string.btn_go)
+
+        btnDownload.setOnClickListener {
             val url = etUrl.text.toString()
             val outputName = etOutputName.text.toString()
             
@@ -177,6 +252,9 @@ class DownloadsFragment : Fragment(R.layout.fragment_downloads) {
                 Toast.makeText(requireContext(), R.string.msg_output_name_required, Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
+
+            btnDownload.isEnabled = false
+            btnDownload.setText(R.string.status_starting)
 
             startDownload(url, outputName, layoutEmpty, rvJobs)
             etUrl.text.clear()
@@ -221,11 +299,12 @@ class DownloadsFragment : Fragment(R.layout.fragment_downloads) {
         
         displayedJobs.clear()
         displayedJobs.addAll(filtered)
-        adapter.notifyDataSetChanged()
+        adapter?.notifyDataSetChanged()
         
-        val layoutEmpty = view?.findViewById<View>(R.id.layout_empty_downloader) ?: return
-        val rvJobs = view?.findViewById<RecyclerView>(R.id.rv_jobs) ?: return
-        val layoutListHeader = view?.findViewById<View>(R.id.layout_list_header) ?: return
+        val v = view ?: return
+        val layoutEmpty = v.findViewById<View>(R.id.layout_empty_downloader) ?: return
+        val rvJobs = v.findViewById<RecyclerView>(R.id.rv_jobs) ?: return
+        val layoutListHeader = v.findViewById<View>(R.id.layout_list_header) ?: return
         updateEmptyState(layoutEmpty, rvJobs, layoutListHeader)
     }
 
@@ -238,17 +317,19 @@ class DownloadsFragment : Fragment(R.layout.fragment_downloads) {
                 applyFilterAndSearch()
                 updateEmptyState(layoutEmpty, rvJobs, layoutListHeader)
                 
-                // Poll any processing jobs in history
                 history.filter { it.status == "processing" }.forEach { pollJob(it) }
             } catch (e: HttpException) {
+                if (!isAdded) return@launch
                 if (e.code() == 401) {
                     if (!attemptTokenRefresh()) {
                         handleSessionExpired()
                     } else {
-                        loadHistory(layoutEmpty, rvJobs, layoutListHeader) // Retry once
+                        loadHistory(layoutEmpty, rvJobs, layoutListHeader)
                     }
                 }
-            } catch (e: Exception) {}
+            } catch (e: Exception) {
+                if (isAdded) Toast.makeText(requireContext(), R.string.msg_load_error, Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -285,9 +366,10 @@ class DownloadsFragment : Fragment(R.layout.fragment_downloads) {
                 updateJobLocally(job)
                 rvJobs.scrollToPosition(0)
                 updateEmptyState(layoutEmpty, rvJobs, layoutListHeader)
-                startCooldownTimer(15000L) // Default 15s proactive cooldown
+                startCooldownTimer(15000L)
                 pollJob(job)
             } catch (e: HttpException) {
+                if (!isAdded) return@launch
                 when (e.code()) {
                     401 -> {
                         if (attemptTokenRefresh()) {
@@ -305,14 +387,23 @@ class DownloadsFragment : Fragment(R.layout.fragment_downloads) {
                         val failedJob = DownloadJob("failed-${System.currentTimeMillis()}", "failed", null, url, outputName)
                         updateJobLocally(failedJob)
                         updateEmptyState(layoutEmpty, rvJobs, layoutListHeader)
+                        reEnableDownloadButton()
                     }
                 }
             } catch (e: Exception) {
+                if (!isAdded) return@launch
                 val failedJob = DownloadJob("failed-${System.currentTimeMillis()}", "failed", null, url, outputName)
                 updateJobLocally(failedJob)
                 updateEmptyState(layoutEmpty, rvJobs, layoutListHeader)
+                reEnableDownloadButton()
             }
         }
+    }
+
+    private fun reEnableDownloadButton() {
+        val btn = view?.findViewById<Button>(R.id.btn_download) ?: return
+        btn.isEnabled = true
+        btn.setText(R.string.btn_go)
     }
 
     private fun updateJobLocally(job: DownloadJob) {
@@ -331,8 +422,17 @@ class DownloadsFragment : Fragment(R.layout.fragment_downloads) {
         val btnDownload = view?.findViewById<Button>(R.id.btn_download) ?: return
         btnDownload.isEnabled = false
         viewLifecycleOwner.lifecycleScope.launch {
-            delay(durationMs)
-            btnDownload.isEnabled = true
+            var remaining = durationMs / 1000
+            while (remaining > 0) {
+                if (!isAdded) return@launch
+                btnDownload.text = getString(R.string.btn_go) + " (${remaining}s)"
+                delay(1000)
+                remaining--
+            }
+            if (isAdded) {
+                btnDownload.isEnabled = true
+                btnDownload.setText(R.string.btn_go)
+            }
         }
     }
 
@@ -346,16 +446,23 @@ class DownloadsFragment : Fragment(R.layout.fragment_downloads) {
     }
 
     private fun handleSessionExpired() {
+        if (!isAdded) return
         sessionManager.clear()
+        jobList.clear()
+        displayedJobs.clear()
+        downloadedJobs.clear()
+        downloadingToDevice.clear()
         Toast.makeText(requireContext(), R.string.msg_session_expired, Toast.LENGTH_LONG).show()
         view?.let { showAuthUi(it) }
     }
 
     private fun retryJob(job: DownloadJob) {
+        if (downloadingToDevice.contains(job.id)) return
         val url = job.url ?: return
         val outputName = job.outputName ?: "download"
-        val layoutEmpty = view?.findViewById<View>(R.id.layout_empty_downloader) ?: return
-        val rvJobs = view?.findViewById<RecyclerView>(R.id.rv_jobs) ?: return
+        val v = view ?: return
+        val layoutEmpty = v.findViewById<View>(R.id.layout_empty_downloader) ?: return
+        val rvJobs = v.findViewById<RecyclerView>(R.id.rv_jobs) ?: return
         startDownload(url, outputName, layoutEmpty, rvJobs)
     }
 
@@ -371,7 +478,7 @@ class DownloadsFragment : Fragment(R.layout.fragment_downloads) {
             } catch (e: HttpException) {
                 if (e.code() == 401) {
                     if (attemptTokenRefresh()) {
-                        continue // Retry current loop
+                        continue
                     } else {
                         handleSessionExpired()
                     }
@@ -381,45 +488,87 @@ class DownloadsFragment : Fragment(R.layout.fragment_downloads) {
                 break
             }
         }
+        if (!isAdded) return
         if (currentJob.status == "done" && !downloadedJobs.contains(currentJob.id)) {
-            downloadToDevice(currentJob)
             downloadedJobs.add(currentJob.id)
+            downloadingToDevice.add(currentJob.id)
+            downloadToDevice(currentJob)
+            waitForFileReady(currentJob)
         }
     }
 
     private fun downloadToDevice(job: DownloadJob) {
         val url = job.outputUrl ?: return
         val uri = Uri.parse(url)
-        val fileName = job.outputName?.let { "$it.${Uri.parse(url).lastPathSegment?.substringAfterLast('.') ?: "mp4"}" } 
-                      ?: uri.lastPathSegment ?: "download_${job.id}"
+        val ext = Uri.parse(url).lastPathSegment?.substringAfterLast('.') ?: "mp4"
+        val baseName = job.outputName ?: "download"
+        val downloadsDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "AzazelDownloads")
+        if (!downloadsDir.exists()) downloadsDir.mkdirs()
+
+        var fileName = "$baseName.$ext"
+        var targetFile = File(downloadsDir, fileName)
+        var counter = 1
+        
+        while (targetFile.exists()) {
+            fileName = "$baseName ($counter).$ext"
+            targetFile = File(downloadsDir, fileName)
+            counter++
+        }
 
         val request = DownloadManager.Request(uri)
             .setTitle(fileName)
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
+            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "AzazelDownloads/$fileName")
 
         val downloadManager = requireContext().getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
         downloadManager.enqueue(request)
 
-        jobToLocalFile[job.id] = File(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-            fileName
-        )
+        MediaScannerConnection.scanFile(requireContext(), arrayOf(targetFile.absolutePath), null, null)
+    }
+
+    private fun waitForFileReady(job: DownloadJob) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            var file: File? = null
+            var attempts = 0
+            while (attempts < 60) {
+                file = expectedLocalFile(job)
+                if (file != null && file.exists()) break
+                delay(500)
+                attempts++
+            }
+            downloadingToDevice.remove(job.id)
+            if (!isAdded) return@launch
+            val index = jobList.indexOfFirst { it.id == job.id }
+            if (index != -1) {
+                adapter?.notifyItemChanged(index)
+            }
+        }
     }
 
     private fun expectedLocalFile(job: DownloadJob): File? {
         val outputUrl = job.outputUrl ?: return null
-        val outputName = job.outputName ?: return null
+        val baseName = job.outputName ?: return null
         val ext = Uri.parse(outputUrl).lastPathSegment?.substringAfterLast('.', "mp4") ?: "mp4"
-        val fileName = "$outputName.$ext"
-        return File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), fileName)
+        val downloadsDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "AzazelDownloads")
+        
+        val exactFile = File(downloadsDir, "$baseName.$ext")
+        if (exactFile.exists()) return exactFile
+        
+        for (i in 1..10) {
+            val suffixFile = File(downloadsDir, "$baseName ($i).$ext")
+            if (suffixFile.exists()) return suffixFile
+        }
+        
+        return exactFile
     }
 
     private fun openDownloadedFile(job: DownloadJob) {
-        val file = expectedLocalFile(job)
-        if (file == null || !file.exists()) {
+        val file = expectedLocalFile(job) ?: run {
             Toast.makeText(requireContext(), R.string.msg_file_not_on_device, Toast.LENGTH_SHORT).show()
-            downloadToDevice(job)
+            return
+        }
+        if (!file.exists()) {
+            Toast.makeText(requireContext(), R.string.msg_file_not_on_device, Toast.LENGTH_SHORT).show()
             return
         }
         try {
@@ -435,5 +584,18 @@ class DownloadsFragment : Fragment(R.layout.fragment_downloads) {
         } catch (e: Exception) {
             Toast.makeText(requireContext(), R.string.msg_open_error, Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun showInFolder(job: DownloadJob) {
+        val file = expectedLocalFile(job)
+        if (file == null || !file.exists()) {
+            Toast.makeText(requireContext(), R.string.msg_file_not_on_device, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val action = DownloadsFragmentDirections.actionDownloadsToBrowser(
+            initialPath = file.parentFile?.absolutePath,
+            highlightFilePath = file.absolutePath
+        )
+        findNavController().navigate(action)
     }
 }

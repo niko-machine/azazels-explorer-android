@@ -17,9 +17,9 @@
             android:layout_height="?attr/actionBarSize"
             android:background="@color/surface_primary"
             app:navigationIcon="@drawable/ic_arrow_back"
-            app:navigationIconTint="@color/text_on_dark"
+            app:navigationIconTint="@color/text_primary"
             app:title="Properties"
-            app:titleTextColor="@color/text_on_dark" />
+            app:titleTextColor="@color/text_primary" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView

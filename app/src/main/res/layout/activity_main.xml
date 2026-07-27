@@ -36,8 +36,8 @@
         app:elevation="0dp"
         app:labelVisibilityMode="labeled"
         app:menu="@menu/bottom_nav_menu"
-        app:itemIconTint="@color/text_on_dark"
-        app:itemTextColor="@color/text_on_dark"
+        app:itemIconTint="@color/nav_item_color"
+        app:itemTextColor="@color/nav_item_color"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />

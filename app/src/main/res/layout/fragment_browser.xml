@@ -12,17 +12,57 @@
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:background="@color/surface_primary"
-        app:titleTextColor="@color/text_on_dark"
+        app:titleTextColor="@color/text_primary"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_files"
+    <TextView
+        android:id="@+id/tv_filter_subtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp"
+        android:paddingHorizontal="16dp"
+        android:paddingBottom="8dp"
+        android:background="@color/surface_primary"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/toolbar" />
+
+    <!-- Task K3: Search Bar -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/layout_search"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:hint="@string/hint_search_files"
+        app:hintTextColor="@color/accent_primary"
+        app:boxStrokeColor="@color/accent_primary"
+        app:startIconDrawable="@android:drawable/ic_menu_search"
+        app:startIconTint="@color/accent_primary"
+        app:layout_constraintTop_toBottomOf="@id/tv_filter_subtitle">
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/et_search_files"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="text"
+            android:textColor="@color/text_primary" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipe_refresh"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        app:layout_constraintTop_toBottomOf="@id/toolbar"
+        app:layout_constraintTop_toBottomOf="@id/layout_search"
         app:layout_constraintBottom_toTopOf="@id/layout_moving"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_files"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
     <androidx.cardview.widget.CardView
         android:id="@+id/layout_moving"
@@ -47,7 +87,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textColor="@color/text_on_dark"
+                android:textColor="@color/text_primary"
                 android:textSize="14sp"
                 android:ellipsize="middle"
                 android:singleLine="true"
@@ -58,7 +98,7 @@
                 style="@style/Widget.MaterialComponents.Button.TextButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Move here"
+                android:text="@string/msg_move_here"
                 android:textColor="@color/accent_primary" />
 
             <com.google.android.material.button.MaterialButton
@@ -76,24 +116,41 @@
         android:id="@+id/progress_bar"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginTop="120dp"
         android:visibility="gone"
         android:indeterminateTint="@color/accent_primary"
-        app:layout_constraintTop_toTopOf="@id/rv_files"
+        app:layout_constraintTop_toBottomOf="@id/layout_search"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintVertical_bias="0.3" />
 
-    <TextView
+    <LinearLayout
         android:id="@+id/tv_empty"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/folder_empty"
-        android:textColor="@color/text_on_dark"
+        android:orientation="vertical"
+        android:gravity="center"
         android:visibility="gone"
         app:layout_constraintTop_toTopOf="@id/rv_files"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageView
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:src="@drawable/ic_empty_folder"
+            android:contentDescription="@string/folder_empty" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/folder_empty"
+            android:textColor="@color/text_secondary"
+            android:textSize="15sp"
+            android:layout_marginTop="12dp" />
+    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/layout_permission"
@@ -111,7 +168,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/permission_required"
-            android:textColor="@color/text_on_dark"
+            android:textColor="@color/text_primary"
             android:padding="16dp"
             android:gravity="center" />
 
@@ -121,7 +178,7 @@
             android:layout_height="wrap_content"
             android:text="@string/grant_permission"
             android:backgroundTint="@color/accent_primary"
-            android:textColor="@color/text_on_dark" />
+            android:textColor="@color/text_primary" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

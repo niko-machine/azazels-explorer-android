@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <navigation xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/nav_graph_browser"
     app:startDestination="@id/browserFragment">
 
@@ -27,6 +28,10 @@
             app:argType="boolean"
             android:defaultValue="false" />
         <argument
+            android:name="fromDashboard"
+            app:argType="boolean"
+            android:defaultValue="false" />
+        <argument
             android:name="fileToMovePath"
             app:argType="string"
             app:nullable="true"
@@ -38,10 +43,18 @@
             android:defaultValue="@null" />
         <action
             android:id="@+id/action_browser_to_zip_contents"
-            app:destination="@id/zipContentsFragment" />
+            app:destination="@id/zipContentsFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
         <action
             android:id="@+id/action_browser_self"
-            app:destination="@id/browserFragment">
+            app:destination="@id/browserFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right">
             <argument
                 android:name="initialPath"
                 app:argType="string"
@@ -73,7 +86,11 @@
         </action>
         <action
             android:id="@+id/action_browser_to_detail"
-            app:destination="@id/fileDetailFragment" />
+            app:destination="@id/fileDetailFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
     </fragment>
 
     <fragment
@@ -86,12 +103,24 @@
         <argument
             android:name="fileName"
             app:argType="string" />
+        <argument
+            android:name="showLocationAction"
+            app:argType="boolean"
+            android:defaultValue="false" />
         <action
             android:id="@+id/action_detail_to_preview"
-            app:destination="@id/imageViewerFragment" />
+            app:destination="@id/imageViewerFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
         <action
             android:id="@+id/action_detail_to_browser"
-            app:destination="@id/browserFragment">
+            app:destination="@id/browserFragment"
+            app:enterAnim="@anim/slide_in_left"
+            app:exitAnim="@anim/slide_out_right"
+            app:popEnterAnim="@anim/slide_in_right"
+            app:popExitAnim="@anim/slide_out_left">
             <argument
                 android:name="initialPath"
                 app:argType="string"
@@ -123,13 +152,17 @@
         </action>
         <action
             android:id="@+id/action_detail_to_properties"
-            app:destination="@id/filePropertiesFragment" />
+            app:destination="@id/filePropertiesFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
     </fragment>
 
     <fragment
         android:id="@+id/filePropertiesFragment"
         android:name="com.azazel.explorer.ui.properties.FilePropertiesFragment"
-        android:label="Properties">
+        android:label="@string/nav_settings">
         <argument
             android:name="filePath"
             app:argType="string" />
@@ -138,7 +171,7 @@
     <fragment
         android:id="@+id/imageViewerFragment"
         android:name="com.azazel.explorer.ui.preview.ImageViewerFragment"
-        android:label="Image Viewer">
+        android:label="@string/nav_file_detail">
         <argument
             android:name="filePath"
             app:argType="string" />
@@ -147,7 +180,7 @@
     <fragment
         android:id="@+id/zipContentsFragment"
         android:name="com.azazel.explorer.ui.zip.ZipContentsFragment"
-        android:label="Zip Contents">
+        android:label="@string/nav_file_detail">
         <argument
             android:name="filePath"
             app:argType="string" />

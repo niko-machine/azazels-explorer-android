@@ -13,12 +13,14 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.Toolbar
+import androidx.core.view.isVisible
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.bumptech.glide.Glide
 import com.azazel.explorer.R
+import com.azazel.explorer.util.formatFileSize
 import java.io.File
 import java.util.Locale
 
@@ -49,6 +51,8 @@ class FileDetailFragment : Fragment(R.layout.fragment_file_detail) {
 
         setupActionButtons(view, file)
         validateActions(view, file)
+        
+        view.findViewById<View>(R.id.btn_show_in_folder).isVisible = args.showLocationAction
 
         val isImage = file.extension.lowercase() in listOf("jpg", "jpeg", "png", "gif", "webp")
         val isVideo = file.extension.lowercase() in listOf("mp4", "mkv", "avi", "mov")
@@ -207,7 +211,7 @@ class FileDetailFragment : Fragment(R.layout.fragment_file_detail) {
             }
             startActivity(intent)
         } catch (e: Exception) {
-            Toast.makeText(requireContext(), "No video player found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), R.string.msg_open_error, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -233,14 +237,5 @@ class FileDetailFragment : Fragment(R.layout.fragment_file_detail) {
         } catch (e: Exception) {
             Toast.makeText(requireContext(), R.string.msg_error_operation, Toast.LENGTH_SHORT).show()
         }
-    }
-
-    private fun formatFileSize(bytes: Long): String {
-        if (bytes < 1024) return "$bytes B"
-        val kb = bytes / 1024.0
-        if (kb < 1024) return String.format(Locale.getDefault(), "%.1f KB", kb)
-        val mb = kb / 1024.0
-        if (mb < 1024) return String.format(Locale.getDefault(), "%.1f MB", mb)
-        return String.format(Locale.getDefault(), "%.1f GB", mb / 1024.0)
     }
 }

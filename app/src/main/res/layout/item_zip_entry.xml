@@ -8,7 +8,8 @@
     android:layout_marginVertical="4dp"
     app:cardBackgroundColor="@color/surface_primary"
     app:cardCornerRadius="8dp"
-    app:cardElevation="2dp">
+    app:cardElevation="2dp"
+    android:foreground="?attr/selectableItemBackground">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -19,8 +20,8 @@
 
         <ImageView
             android:id="@+id/iv_entry_icon"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             app:tint="@color/accent_primary"
             android:src="@drawable/ic_file"
             android:contentDescription="@string/desc_file_icon" />
@@ -37,7 +38,7 @@
                 android:id="@+id/tv_entry_name"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="@color/text_on_dark"
+                android:textColor="@color/text_primary"
                 android:textSize="14sp"
                 android:textStyle="bold"
                 tools:text="image.jpg" />
@@ -46,8 +47,7 @@
                 android:id="@+id/tv_entry_size"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="@color/text_on_dark"
-                android:alpha="0.6"
+                android:textColor="@color/text_secondary"
                 android:textSize="12sp"
                 tools:text="1.2 MB" />
 
