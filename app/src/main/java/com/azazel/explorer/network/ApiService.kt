@@ -13,4 +13,7 @@ interface ApiService {
 
     @GET("jobs/{id}")
     suspend fun getJob(@Path("id") id: String): DownloadJob
+
+    @GET("jobs")
+    suspend fun listJobs(): List<DownloadJob>
 }

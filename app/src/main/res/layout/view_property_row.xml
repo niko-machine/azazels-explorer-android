@@ -11,10 +11,11 @@
 
     <ImageView
         android:id="@+id/iv_row_icon"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
         app:tint="@color/accent_primary"
-        tools:src="@drawable/ic_file" />
+        tools:src="@drawable/ic_file"
+        android:contentDescription="@string/desc_file_icon" />
 
     <LinearLayout
         android:layout_width="0dp"
@@ -36,7 +37,7 @@
             android:id="@+id/tv_row_value"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="@color/text_on_dark"
+            android:textColor="@color/text_primary"
             android:textSize="16sp"
             tools:text="Value goes here" />
 

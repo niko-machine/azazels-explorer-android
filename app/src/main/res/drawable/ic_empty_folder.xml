@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+
+    <!-- Folder back flap -->
+    <path
+        android:pathData="M20,38 L50,38 L56,30 L100,30 L100,38 L100,38 C100,38 100,36 100,38 L20,38 Z"
+        android:fillColor="@color/surface_secondary" />
+
+    <!-- Folder body -->
+    <path
+        android:pathData="M16,42 L104,42 C106,42 108,44 108,46 L108,92 C108,94 106,96 104,96 L16,96 C14,96 12,94 12,92 L12,46 C12,44 14,42 16,42 Z"
+        android:fillColor="@color/surface_primary" />
+
+    <!-- Folder front edge -->
+    <path
+        android:pathData="M16,42 L104,42 C106,42 108,44 108,46 L108,50 L12,50 L12,46 C12,44 14,42 16,42 Z"
+        android:fillColor="@color/surface_secondary" />
+
+    <!-- Question mark -->
+    <path
+        android:pathData="M54,60 C54,56 58,54 62,54 C66,54 70,56 70,60 C70,64 66,65 64,67 L64,72"
+        android:strokeColor="@color/accent_primary"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M62,78 A2.5,2.5 0 1,1 62.01,78"
+        android:fillColor="@color/accent_primary" />
+</vector>

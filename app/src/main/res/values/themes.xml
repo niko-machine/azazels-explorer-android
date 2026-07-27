@@ -1,17 +1,30 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
-    <style name="Base.Theme.AzazelsExplorer" parent="Theme.Material3.Dark.NoActionBar">
-        <!-- Customize your dark theme here. -->
+    <style name="Base.Theme.AzazelsExplorer" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Main Palette -->
         <item name="colorPrimary">@color/accent_primary</item>
         <item name="colorOnPrimary">@color/text_on_dark</item>
         <item name="colorSecondary">@color/accent_secondary</item>
-        <item name="colorOnSecondary">@color/text_on_dark</item>
+        <item name="colorOnSecondary">@color/text_primary</item>
         <item name="android:windowBackground">@color/background_primary</item>
         <item name="colorSurface">@color/surface_primary</item>
-        <item name="colorOnSurface">@color/text_on_dark</item>
+        <item name="colorOnSurface">@color/text_primary</item>
         <item name="colorSurfaceVariant">@color/surface_secondary</item>
-        <item name="colorOnSurfaceVariant">@color/text_on_dark</item>
+        <item name="colorOnSurfaceVariant">@color/text_secondary</item>
     </style>
 
     <style name="Theme.AzazelsExplorer" parent="Base.Theme.AzazelsExplorer" />
+
+    <!-- Theme Overlays -->
+    <style name="Theme.AzazelsExplorer.Crimson" parent="Base.Theme.AzazelsExplorer">
+        <item name="colorPrimary">@color/accent_crimson</item>
+    </style>
+
+    <style name="Theme.AzazelsExplorer.Blue" parent="Base.Theme.AzazelsExplorer">
+        <item name="colorPrimary">@color/accent_blue</item>
+    </style>
+
+    <style name="Theme.AzazelsExplorer.Purple" parent="Base.Theme.AzazelsExplorer">
+        <item name="colorPrimary">@color/accent_purple</item>
+    </style>
 </resources>

@@ -37,7 +37,7 @@ class QuickAccessAdapter(
         val category = categories[position]
         holder.icon.setImageResource(category.iconRes)
         holder.name.text = category.name
-        holder.count.text = "${category.count} items"
+        holder.count.text = holder.itemView.context.getString(R.string.label_items_count, category.count)
         holder.itemView.setOnClickListener { onClick(category) }
     }
 
